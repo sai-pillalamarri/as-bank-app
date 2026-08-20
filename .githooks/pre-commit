@@ -2,3 +2,17 @@
 set -euo pipefail
 
 gitleaks git --pre-commit --redact --staged --verbose
+
+if [[ -f frontend/package.json ]]; then
+  npm --prefix frontend exec -- prettier --check .
+  npm --prefix frontend exec -- eslint .
+fi
+
+for service in customer-service account-service transaction-service; do
+  if [[ -f "$service/pom.xml" ]] && grep -q "spotless-maven-plugin" "$service/pom.xml"; then
+    (
+      cd "$service"
+      ./mvnw spotless:check
+    )
+  fi
+done
