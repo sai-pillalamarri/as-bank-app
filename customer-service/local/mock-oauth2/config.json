@@ -1,0 +1,23 @@
+{
+  "interactiveLogin": false,
+  "tokenCallbacks": [
+    {
+      "issuerId": "default",
+      "requestMappings": [
+        {
+          "requestParam": "grant_type",
+          "match": "client_credentials",
+          "claims": {
+            "sub": "customer-local-001",
+            "client_id": "${client_id}",
+            "token_use": "access",
+            "cognito:groups": [
+              "CUSTOMER"
+            ],
+            "scope": "customer.read metrics.read"
+          }
+        }
+      ]
+    }
+  ]
+}

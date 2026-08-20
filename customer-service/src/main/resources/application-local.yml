@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/customer_service
+    username: customer_service
+    password: local-only
+
+  flyway:
+    locations:
+      - classpath:db/migration
+      - classpath:db/local
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090/default
+          jwk-set-uri: http://localhost:9090/default/jwks
+
+asbank:
+  security:
+    expected-client-id: as-bank-local
