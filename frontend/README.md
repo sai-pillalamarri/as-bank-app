@@ -1,73 +1,392 @@
-# React + TypeScript + Vite
+# AS Bank Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React frontend for the AS Bank application.
 
-Currently, two official plugins are available:
+This is a learning project using synthetic data. It must not be presented as production banking experience.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend is a separate application from the Spring Boot services. It will eventually call `customer-service`, `account-service`, and `transaction-service`.
 
-## React Compiler
+The current implementation is the Stage 1 walking skeleton. It calls `customer-service` and displays the seeded customer profile.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Current scope
 
-## Expanding the ESLint configuration
+The Stage 1 frontend provides:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 19 with TypeScript
+- Vite development and production builds
+- React Router
+- Tailwind CSS
+- shadcn/ui components
+- runtime configuration through `config.json`
+- authenticated calls to `customer-service`
+- customer profile display
+- loading and API error states
+- access-token storage in browser memory only
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+The current screen deliberately does not contain accounts, balances, transfers, or transaction history. Those belong to later stages when the corresponding backend services exist.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Technology
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+- React 19
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- shadcn/ui
+- ESLint
+- Prettier
+- npm
+
+## Project structure
+
+The frontend lives beside the backend services rather than inside one of them.
+
+```text
+as-bank-app/
+├── customer-service/
+├── frontend/
+├── compose.yaml
+└── README.md
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The main frontend source is organised as:
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```text
+frontend/
+├── public/
+│   └── config.json
+├── src/
+│   ├── api/
+│   │   └── customer-api.ts
+│   ├── components/
+│   │   └── ui/
+│   ├── config/
+│   │   └── runtime-config.ts
+│   ├── lib/
+│   │   └── utils.ts
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
+├── components.json
+├── eslint.config.js
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
+
+`src/api` contains calls to backend services.
+
+`src/config` handles configuration loaded when the application starts.
+
+`src/components/ui` contains shadcn/ui component source owned by this repository.
+
+## Install
+
+From `frontend`:
+
+```bash
+npm install
+```
+
+Do not commit `node_modules` or `dist`. They are generated from the source and package lock file.
+
+## Run locally
+
+The Stage 1 screen calls `customer-service`, so the local dependencies and backend must be running before testing the complete flow.
+
+### 1. Start local dependencies
+
+From the repository root:
+
+```bash
+docker compose up -d
+```
+
+This starts PostgreSQL and the local mock OAuth2 issuer.
+
+### 2. Start customer-service
+
+From `customer-service`:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Duser.timezone=UTC"
+```
+
+The customer API listens on:
+
+```text
+http://localhost:8080
+```
+
+### 3. Start the frontend
+
+From `frontend`:
+
+```bash
+npm run dev
+```
+
+Vite serves the application at:
+
+```text
+http://localhost:5173
+```
+
+Open that address in a browser.
+
+## Local customer
+
+The Stage 1 Flyway seed creates this customer:
+
+```text
+Customer ID: 11111111-1111-1111-1111-111111111111
+Subject:     customer-local-001
+First name:  Alex
+Last name:   Morgan
+Status:      ACTIVE
+```
+
+The customer ID is prefilled in the local customer lookup screen.
+
+## Local authentication
+
+The Stage 1 screen accepts a token generated by the local mock OAuth2 issuer.
+
+Request a fresh token with:
+
+```bash
+curl -s -X POST http://localhost:9090/default/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=as-bank-local" \
+  -d "client_secret=local-secret"
+```
+
+Copy the returned `access_token` into the **Local access token** field and select **View customer**.
+
+A successful request displays:
+
+```text
+Alex Morgan
+ACTIVE
+```
+
+The frontend sends the token as:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+The backend remains responsible for authentication and authorization.
+
+### Why the token is entered manually
+
+Manual token entry is only a Stage 1 development mechanism. It lets the React shell exercise the secured backend without creating a fake login system.
+
+The full frontend will use Cognito Authorization Code + PKCE in a later stage.
+
+There will be no client secret in the browser.
+
+## Token handling
+
+The current access token is stored only in React component state.
+
+It is not written to:
+
+```text
+localStorage
+sessionStorage
+cookies
+```
+
+Refreshing the page clears the token.
+
+The frontend must not decode a JWT and use its claims to make authorization decisions. Authorization belongs on the backend.
+
+## Runtime configuration
+
+Environment-specific values are not baked into the JavaScript bundle.
+
+The application loads:
+
+```text
+/public/config.json
+```
+
+before React renders.
+
+The local configuration currently contains:
+
+```json
+{
+  "environment": "local",
+  "apiBaseUrl": "http://localhost:8080"
+}
+```
+
+Application code reads this configuration through:
+
+```text
+src/config/runtime-config.ts
+```
+
+This is intentional.
+
+Later, Kubernetes will provide the environment-specific `config.json` through a ConfigMap. The same frontend image can then be promoted through dev, QA, and prod without rebuilding it with different API URLs.
+
+Do not replace this with a build-time `VITE_API_URL`.
+
+## Customer API
+
+The Stage 1 API client is:
+
+```text
+src/api/customer-api.ts
+```
+
+It calls:
+
+```text
+GET /api/v1/customers/{customerId}
+```
+
+The browser sends the OAuth2 access token in the `Authorization` header.
+
+The API client returns the customer DTO:
+
+```text
+id
+firstName
+lastName
+status
+```
+
+Backend errors use Problem Details. When a response includes a `detail` field, the frontend displays that message instead of hiding the server response behind a generic failure.
+
+## CORS
+
+During local development the frontend runs at:
+
+```text
+http://localhost:5173
+```
+
+`customer-service` explicitly allows this origin.
+
+The backend does not use a wildcard CORS origin.
+
+## Routing
+
+React Router is configured at application startup.
+
+Stage 1 currently has only the customer portal screen. Additional routes will be added when the application gains real login, account, transfer, operations, and platform-information screens.
+
+Do not add placeholder routes for backend features that do not exist yet.
+
+## Styling
+
+The UI uses Tailwind CSS and shadcn/ui.
+
+The intent is a clean banking-style interface without maintaining a custom component library.
+
+Reusable shadcn components are under:
+
+```text
+src/components/ui/
+```
+
+Application-specific layout stays outside that directory.
+
+Do not modify generated UI components only to satisfy application-specific styling when composition or Tailwind classes on the consuming screen are sufficient.
+
+## Code quality
+
+Run ESLint:
+
+```bash
+npm run lint
+```
+
+Check formatting:
+
+```bash
+npm run format:check
+```
+
+Apply formatting:
+
+```bash
+npm run format
+```
+
+The repository pre-commit hook runs Gitleaks, Prettier, and ESLint before accepting frontend commits.
+
+## Production build
+
+Build the frontend with:
+
+```bash
+npm run build
+```
+
+Vite writes the production files to:
+
+```text
+dist/
+```
+
+`dist` is generated output and must not be committed.
+
+The build will later become the first stage of a multi-stage container build. The runtime container will contain only the built static files and nginx configuration, not Node.js or `node_modules`.
+
+## Stage 1 verification
+
+The Stage 1 frontend has been verified with the complete local path:
+
+```text
+React frontend
+    |
+    | Authorization: Bearer <token>
+    v
+customer-service
+    |
+    v
+PostgreSQL
+```
+
+The browser successfully retrieved and rendered the seeded customer:
+
+```text
+Alex Morgan
+ACTIVE
+```
+
+The frontend also passes:
+
+```bash
+npm run lint
+npm run build
+```
+
+This completes the React-shell portion of the Stage 1 walking skeleton.
+
+It does not mean the full AS Bank frontend is complete.
+
+## Later stages
+
+The frontend will grow with the rest of the application rather than implementing future backend behaviour in advance.
+
+Planned work includes:
+
+- Cognito Authorization Code + PKCE
+- account and balance views backed by `account-service`
+- transfer and transaction flows backed by `transaction-service`
+- environment and build-information panel
+- protected operations page for failure-injection drills
+- nginx production container
+- container security headers
+- SPA fallback configuration
+- Kubernetes deployment
+- runtime ConfigMap integration
+- CloudFront and ALB delivery path
+
+Those features should be implemented in their assigned project stages rather than added to the Stage 1 shell early.
