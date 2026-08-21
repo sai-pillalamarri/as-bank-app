@@ -4,8 +4,8 @@ set -euo pipefail
 gitleaks git --pre-commit --redact --staged --verbose
 
 if [[ -f frontend/package.json ]]; then
-  npm --prefix frontend exec -- prettier --check .
-  npm --prefix frontend exec -- eslint .
+  npm --prefix frontend run format:check
+  npm --prefix frontend run lint
 fi
 
 for service in customer-service account-service transaction-service; do
