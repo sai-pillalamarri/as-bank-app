@@ -119,16 +119,12 @@ public class SecurityConfig {
         OAuth2TokenValidator<Jwt> standardValidation =
                 JwtValidators.createDefaultWithIssuer(issuerUri);
 
-        OAuth2TokenValidator<Jwt> tokenUseValidation =
-                requiredClaim("token_use", "access");
-
         OAuth2TokenValidator<Jwt> clientIdValidation =
                 requiredClaim("client_id", expectedClientId);
 
         decoder.setJwtValidator(
                 new DelegatingOAuth2TokenValidator<>(
                         standardValidation,
-                        tokenUseValidation,
                         clientIdValidation
                 )
         );
