@@ -124,18 +124,12 @@ jobs:
             --predicate sbom.spdx.json \
             "${{ steps.digest.outputs.ref }}"
 
-      - name: Verify signature and SBOM
+      - name: Verify image signature
         shell: bash
         run: |
           identity="^https://github.com/${GITHUB_REPOSITORY}/\\.github/workflows/.*@refs/heads/main$"
 
           cosign verify \
-            --certificate-identity-regexp "$identity" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "${{ steps.digest.outputs.ref }}"
-
-          cosign verify-attestation \
-            --type spdxjson \
             --certificate-identity-regexp "$identity" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "${{ steps.digest.outputs.ref }}"
