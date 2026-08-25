@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "customer-service/**"
+      - "frontend/**"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/reusable-image-release.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  changes:
+    name: Detect release paths
+    runs-on: ubuntu-latest
+
+    outputs:
+      customer: ${{ steps.paths.outputs.customer }}
+      frontend: ${{ steps.paths.outputs.frontend }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: paths
+        shell: bash
+        run: |
+          base="${{ github.event.before }}"
+          head="${{ github.sha }}"
+
+          files="$(git diff --name-only "$base" "$head")"
+
+          customer=false
+          frontend=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              customer-service/*)
+                customer=true
+                ;;
+              frontend/*)
+                frontend=true
+                ;;
+              .github/workflows/release.yml|.github/workflows/reusable-image-release.yml)
+                customer=true
+                frontend=true
+                ;;
+            esac
+          done <<< "$files"
+
+          echo "customer=$customer" >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+
+  customer-service:
+    needs: changes
+    if: needs.changes.outputs.customer == 'true'
+
+    uses: ./.github/workflows/reusable-image-release.yml
+
+    with:
+      context: customer-service
+      ecr_repository: as-bank/customer-service
+      aws_region: ${{ vars.AWS_REGION }}
+      role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+
+    uses: ./.github/workflows/reusable-image-release.yml
+
+    with:
+      context: frontend
+      ecr_repository: as-bank/frontend
+      aws_region: ${{ vars.AWS_REGION }}
+      role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
