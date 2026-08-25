@@ -267,7 +267,7 @@ jobs:
           docker compose down -v
 
   gate:
-    name: PR gate
+    name: ${{ github.event_name == 'pull_request' && 'PR gate' || 'Branch gate' }}
     if: always()
     needs:
       - changes
