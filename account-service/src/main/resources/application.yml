@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: account-service
+
+  profiles:
+    default: local
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  server:
+    port: 8081
+
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+    env:
+      enabled: false
+    heapdump:
+      enabled: false
+    threaddump:
+      enabled: false
+
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
+
+asbank:
+  customer-service:
+    base-url: ${CUSTOMER_SERVICE_BASE_URL:http://customer-service:8080}
+    connect-timeout: 100ms
+    read-timeout: 200ms
+
+resilience4j:
+  retry:
+    instances:
+      customerService:
+        max-attempts: 2
+        wait-duration: 20ms
+        retry-exceptions:
+          - com.asbank.account.customer.CustomerServiceUnavailableException
+
+  circuitbreaker:
+    instances:
+      customerService:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        record-exceptions:
+          - com.asbank.account.customer.CustomerServiceUnavailableException
+        ignore-exceptions:
+          - org.springframework.security.access.AccessDeniedException
+
+  bulkhead:
+    instances:
+      customerService:
+        # A stalled dependency must not consume every request thread.
+        max-concurrent-calls: 20
+        max-wait-duration: 0
+
+logging:
+  pattern:
+    level: "%5p [correlationId:%X{correlationId:-}]"
