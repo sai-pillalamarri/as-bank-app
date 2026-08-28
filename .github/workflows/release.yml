@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "customer-service/**"
+      - "account-service/**"
       - "frontend/**"
       - ".github/workflows/release.yml"
       - ".github/workflows/reusable-image-release.yml"
@@ -21,6 +22,7 @@ jobs:
 
     outputs:
       customer: ${{ steps.paths.outputs.customer }}
+      account: ${{ steps.paths.outputs.account }}
       frontend: ${{ steps.paths.outputs.frontend }}
 
     steps:
@@ -39,6 +41,7 @@ jobs:
           files="$(git diff --name-only "$base" "$head")"
 
           customer=false
+          account=false
           frontend=false
 
           while IFS= read -r file; do
@@ -46,17 +49,22 @@ jobs:
               customer-service/*)
                 customer=true
                 ;;
+              account-service/*)
+                account=true
+                ;;
               frontend/*)
                 frontend=true
                 ;;
               .github/workflows/release.yml|.github/workflows/reusable-image-release.yml)
                 customer=true
+                account=true
                 frontend=true
                 ;;
             esac
           done <<< "$files"
 
           echo "customer=$customer" >> "$GITHUB_OUTPUT"
+          echo "account=$account" >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
 
   customer-service:
@@ -68,6 +76,18 @@ jobs:
     with:
       context: customer-service
       ecr_repository: as-bank/customer-service
+      aws_region: ${{ vars.AWS_REGION }}
+      role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
+
+  account-service:
+    needs: changes
+    if: needs.changes.outputs.account == 'true'
+
+    uses: ./.github/workflows/reusable-image-release.yml
+
+    with:
+      context: account-service
+      ecr_repository: as-bank/account-service
       aws_region: ${{ vars.AWS_REGION }}
       role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
 
