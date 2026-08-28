@@ -20,5 +20,17 @@ services:
     volumes:
       - ./customer-service/local/mock-oauth2/config.json:/app/config.json:ro
 
+  account-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: account_service
+      POSTGRES_USER: account_service
+      POSTGRES_PASSWORD: local-only
+    ports:
+      - "5433:5432"
+    volumes:
+      - account-postgres-data:/var/lib/postgresql/data
+
 volumes:
   customer-postgres-data:
+  account-postgres-data:

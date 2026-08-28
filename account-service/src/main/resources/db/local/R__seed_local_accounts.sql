@@ -1,0 +1,35 @@
+INSERT INTO accounts (
+    id,
+    customer_id,
+    account_number,
+    type,
+    status,
+    balance,
+    currency,
+    version,
+    created_at
+)
+VALUES
+    (
+        '22222222-2222-2222-2222-222222222222',
+        '11111111-1111-1111-1111-111111111111',
+        '10000001',
+        'CURRENT',
+        'ACTIVE',
+        1000.00,
+        'GBP',
+        0,
+        '2026-01-01T00:00:00Z'
+    ),
+    (
+        '33333333-3333-3333-3333-333333333333',
+        '11111111-1111-1111-1111-111111111111',
+        '10000002',
+        'SAVINGS',
+        'ACTIVE',
+        2500.00,
+        'GBP',
+        0,
+        '2026-01-01T00:00:00Z'
+    )
+    ON CONFLICT (id) DO NOTHING;

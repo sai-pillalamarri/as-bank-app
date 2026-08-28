@@ -20,6 +20,7 @@ jobs:
 
     outputs:
       backend: ${{ steps.paths.outputs.backend }}
+      account: ${{ steps.paths.outputs.account }}
       frontend: ${{ steps.paths.outputs.frontend }}
 
     steps:
@@ -47,6 +48,7 @@ jobs:
           files="$(git diff --name-only "$base" "$head")"
 
           backend=false
+          account=false
           frontend=false
 
           while IFS= read -r file; do
@@ -54,17 +56,22 @@ jobs:
               customer-service/*)
                 backend=true
                 ;;
+              account-service/*)
+                account=true
+                ;;
               frontend/*)
                 frontend=true
                 ;;
               sonar-project.properties|.github/workflows/*)
                 backend=true
+                account=true
                 frontend=true
                 ;;
             esac
           done <<< "$files"
 
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "account=$account" >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
 
   customer-service:
@@ -78,6 +85,21 @@ jobs:
       service: customer-service
       sonar_organization: ${{ vars.SONAR_ORGANIZATION }}
       sonar_project_key: ${{ vars.SONAR_CUSTOMER_PROJECT_KEY }}
+
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  account-service:
+    name: Account service
+    needs: changes
+    if: needs.changes.outputs.account == 'true'
+
+    uses: ./.github/workflows/reusable-java-ci.yml
+
+    with:
+      service: account-service
+      sonar_organization: ${{ vars.SONAR_ORGANIZATION }}
+      sonar_project_key: ${{ vars.SONAR_ACCOUNT_PROJECT_KEY }}
 
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -273,6 +295,7 @@ jobs:
     needs:
       - changes
       - customer-service
+      - account-service
       - frontend
       - security-scan
       - dast
@@ -286,6 +309,7 @@ jobs:
           for result in \
             "${{ needs.changes.result }}" \
             "${{ needs.customer-service.result }}" \
+            "${{ needs.account-service.result }}" \
             "${{ needs.frontend.result }}" \
             "${{ needs.security-scan.result }}" \
             "${{ needs.dast.result }}"
