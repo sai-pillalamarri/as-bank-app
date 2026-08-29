@@ -1,6 +1,8 @@
 export interface RuntimeConfig {
   environment: string;
-  apiBaseUrl: string;
+  customerApiBaseUrl: string;
+  accountApiBaseUrl: string;
+  transactionApiBaseUrl: string;
 }
 
 let runtimeConfig: RuntimeConfig | undefined;

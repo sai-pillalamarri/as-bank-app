@@ -1,4 +1,6 @@
 {
   "environment": "local",
-  "apiBaseUrl": "http://localhost:8080"
+  "customerApiBaseUrl": "http://localhost:8080",
+  "accountApiBaseUrl": "http://localhost:8082",
+  "transactionApiBaseUrl": "http://localhost:8084"
 }
