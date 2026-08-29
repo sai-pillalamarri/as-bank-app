@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: transaction-service
+
+  profiles:
+    default: local
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    locations:
+      - classpath:db/migration
+
+server:
+  port: 8080
+  shutdown: graceful
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  server:
+    port: 8081
+
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - prometheus
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+    env:
+      access: none
+
+    heapdump:
+      access: none
+
+    threaddump:
+      access: none
+
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+      slo:
+        http.server.requests:
+          - 50ms
+          - 100ms
+          - 200ms
+          - 500ms
+          - 1s
+          - 2s
+
+logging:
+  pattern:
+    level: "%5p [correlationId:%X{correlationId}]"
+
+asbank:
+  account-service:
+    base-url: ${ACCOUNT_SERVICE_BASE_URL:http://account-service:8080}
+    connect-timeout: 100ms
+    read-timeout: 300ms
+
+  security:
+    expected-client-id: ${EXPECTED_CLIENT_ID}
+
+  failure-injection:
+    enabled: ${FAILURE_INJECTION_ENABLED:false}
+
+resilience4j:
+  retry:
+    instances:
+      accountService:
+        max-attempts: 2
+        wait-duration: 20ms
+        retry-exceptions:
+          - com.asbank.transaction.account.AccountServiceUnavailableException
+
+  circuitbreaker:
+    instances:
+      accountService:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        record-exceptions:
+          - com.asbank.transaction.account.AccountServiceUnavailableException
+        ignore-exceptions:
+          - org.springframework.security.access.AccessDeniedException
+
+  bulkhead:
+    instances:
+      accountService:
+        max-concurrent-calls: 20
+        max-wait-duration: 0

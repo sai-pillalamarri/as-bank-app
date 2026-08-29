@@ -31,6 +31,18 @@ services:
     volumes:
       - account-postgres-data:/var/lib/postgresql/data
 
+  transaction-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: transaction_service
+      POSTGRES_USER: transaction_service
+      POSTGRES_PASSWORD: local-only
+    ports:
+      - "5434:5432"
+    volumes:
+      - transaction-postgres-data:/var/lib/postgresql/data
+
 volumes:
   customer-postgres-data:
   account-postgres-data:
+  transaction-postgres-data:

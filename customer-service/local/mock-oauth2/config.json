@@ -14,7 +14,7 @@
             "cognito:groups": [
               "CUSTOMER"
             ],
-            "scope": "customer.read account.read metrics.read"
+            "scope": "customer.read account.read account.write transaction.read transaction.write metrics.read"
           }
         }
       ]

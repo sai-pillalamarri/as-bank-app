@@ -21,6 +21,7 @@ jobs:
     outputs:
       backend: ${{ steps.paths.outputs.backend }}
       account: ${{ steps.paths.outputs.account }}
+      transaction: ${{ steps.paths.outputs.transaction }}
       frontend: ${{ steps.paths.outputs.frontend }}
 
     steps:
@@ -49,6 +50,7 @@ jobs:
 
           backend=false
           account=false
+          transaction=false
           frontend=false
 
           while IFS= read -r file; do
@@ -59,12 +61,16 @@ jobs:
               account-service/*)
                 account=true
                 ;;
+              transaction-service/*)
+                transaction=true
+                ;;
               frontend/*)
                 frontend=true
                 ;;
               sonar-project.properties|.github/workflows/*)
                 backend=true
                 account=true
+                transaction=true
                 frontend=true
                 ;;
             esac
@@ -72,6 +78,7 @@ jobs:
 
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
           echo "account=$account" >> "$GITHUB_OUTPUT"
+          echo "transaction=$transaction" >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
 
   customer-service:
@@ -100,6 +107,21 @@ jobs:
       service: account-service
       sonar_organization: ${{ vars.SONAR_ORGANIZATION }}
       sonar_project_key: ${{ vars.SONAR_ACCOUNT_PROJECT_KEY }}
+
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  transaction-service:
+    name: Transaction service
+    needs: changes
+    if: needs.changes.outputs.transaction == 'true'
+
+    uses: ./.github/workflows/reusable-java-ci.yml
+
+    with:
+      service: transaction-service
+      sonar_organization: ${{ vars.SONAR_ORGANIZATION }}
+      sonar_project_key: ${{ vars.SONAR_TRANSACTION_PROJECT_KEY }}
 
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -296,6 +318,7 @@ jobs:
       - changes
       - customer-service
       - account-service
+      - transaction-service
       - frontend
       - security-scan
       - dast
@@ -310,6 +333,7 @@ jobs:
             "${{ needs.changes.result }}" \
             "${{ needs.customer-service.result }}" \
             "${{ needs.account-service.result }}" \
+            "${{ needs.transaction-service.result }}" \
             "${{ needs.frontend.result }}" \
             "${{ needs.security-scan.result }}" \
             "${{ needs.dast.result }}"
