@@ -278,6 +278,149 @@ class BalanceCommandExecutorTest {
         );
     }
 
+    @Test
+    void rejectsTransferToSameAccount() {
+        BalanceCommandRequest request = new BalanceCommandRequest(
+                UUID.randomUUID(),
+                BalanceCommandType.TRANSFER,
+                SOURCE_ID,
+                SOURCE_ID,
+                new BigDecimal("100.00"),
+                "GBP"
+        );
+
+        when(commandRepository.findById(request.commandId()))
+                .thenReturn(Optional.empty());
+
+        BalanceCommandResponse response = executor.execute(request);
+
+        assertEquals(
+                BalanceCommandStatus.REJECTED,
+                response.status()
+        );
+        assertEquals(
+                BalanceFailureReason.SAME_ACCOUNT,
+                response.failureReason()
+        );
+
+        verifyNoInteractions(accountRepository);
+    }
+
+    @Test
+    void rejectsTransferWhenDestinationAccountDoesNotExist() {
+        BalanceCommandRequest request = transfer("100.00");
+
+        Account source = account(
+                SOURCE_ID,
+                "1000.00"
+        );
+
+        when(commandRepository.findById(request.commandId()))
+                .thenReturn(Optional.empty());
+
+        when(accountRepository.findById(SOURCE_ID))
+                .thenReturn(Optional.of(source));
+
+        when(accountRepository.findById(DESTINATION_ID))
+                .thenReturn(Optional.empty());
+
+        BalanceCommandResponse response = executor.execute(request);
+
+        assertEquals(
+                BalanceCommandStatus.REJECTED,
+                response.status()
+        );
+        assertEquals(
+                BalanceFailureReason.ACCOUNT_NOT_FOUND,
+                response.failureReason()
+        );
+    }
+
+    @Test
+    void rejectsTransferWhenCurrencyDoesNotMatch() {
+        BalanceCommandRequest request = new BalanceCommandRequest(
+                UUID.randomUUID(),
+                BalanceCommandType.TRANSFER,
+                SOURCE_ID,
+                DESTINATION_ID,
+                new BigDecimal("100.00"),
+                "USD"
+        );
+
+        Account source = account(
+                SOURCE_ID,
+                "1000.00"
+        );
+
+        Account destination = account(
+                DESTINATION_ID,
+                "2500.00"
+        );
+
+        when(commandRepository.findById(request.commandId()))
+                .thenReturn(Optional.empty());
+
+        when(accountRepository.findById(SOURCE_ID))
+                .thenReturn(Optional.of(source));
+
+        when(accountRepository.findById(DESTINATION_ID))
+                .thenReturn(Optional.of(destination));
+
+        BalanceCommandResponse response = executor.execute(request);
+
+        assertEquals(
+                BalanceCommandStatus.REJECTED,
+                response.status()
+        );
+        assertEquals(
+                BalanceFailureReason.CURRENCY_MISMATCH,
+                response.failureReason()
+        );
+    }
+
+    @Test
+    void rejectsTransferFromFrozenAccount() {
+        BalanceCommandRequest request = transfer("100.00");
+
+        Account source = new Account(
+                SOURCE_ID,
+                UUID.fromString(
+                        "11111111-1111-1111-1111-111111111111"
+                ),
+                "10000001",
+                AccountType.CURRENT,
+                AccountStatus.FROZEN,
+                new BigDecimal("1000.00"),
+                "GBP",
+                Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        Account destination = account(
+                DESTINATION_ID,
+                "2500.00"
+        );
+
+        when(commandRepository.findById(request.commandId()))
+                .thenReturn(Optional.empty());
+
+        when(accountRepository.findById(SOURCE_ID))
+                .thenReturn(Optional.of(source));
+
+        when(accountRepository.findById(DESTINATION_ID))
+                .thenReturn(Optional.of(destination));
+
+        BalanceCommandResponse response = executor.execute(request);
+
+        assertEquals(
+                BalanceCommandStatus.REJECTED,
+                response.status()
+        );
+        assertEquals(
+                BalanceFailureReason.ACCOUNT_FROZEN,
+                response.failureReason()
+        );
+    }
+
     private BalanceCommandRequest transfer(String amount) {
         return new BalanceCommandRequest(
                 UUID.randomUUID(),
