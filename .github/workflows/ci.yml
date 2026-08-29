@@ -159,6 +159,10 @@ jobs:
         working-directory: frontend
         run: npm run format:check
 
+      - name: Test with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
       - name: Build
         working-directory: frontend
         run: npm run build

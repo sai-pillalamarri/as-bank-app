@@ -4,7 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import "./index.css";
+
 import { loadRuntimeConfig } from "@/config/runtime-config";
+import { SessionProvider } from "@/lib/session-provider";
 
 async function start() {
   await loadRuntimeConfig();
@@ -12,7 +14,9 @@ async function start() {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <BrowserRouter>
-        <App />
+        <SessionProvider>
+          <App />
+        </SessionProvider>
       </BrowserRouter>
     </StrictMode>,
   );
