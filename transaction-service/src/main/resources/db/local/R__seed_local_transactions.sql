@@ -1,0 +1,1 @@
+-- Local transactions are created through the API so idempotency and ledger writes are exercised together.

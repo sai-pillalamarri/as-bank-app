@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/transaction_service
+    username: transaction_service
+    password: local-only
+
+  flyway:
+    locations:
+      - classpath:db/migration
+      - classpath:db/local
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090/default
+          jwk-set-uri: http://localhost:9090/default/jwks
+
+server:
+  port: 8084
+
+management:
+  server:
+    port: 8085
+
+asbank:
+  account-service:
+    base-url: http://localhost:8082
+    connect-timeout: 250ms
+    read-timeout: 2s
+
+  security:
+    expected-client-id: as-bank-local

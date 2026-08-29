@@ -7,6 +7,7 @@ on:
     paths:
       - "customer-service/**"
       - "account-service/**"
+      - "transaction-service/**"
       - "frontend/**"
       - ".github/workflows/release.yml"
       - ".github/workflows/reusable-image-release.yml"
@@ -23,6 +24,7 @@ jobs:
     outputs:
       customer: ${{ steps.paths.outputs.customer }}
       account: ${{ steps.paths.outputs.account }}
+      transaction: ${{ steps.paths.outputs.transaction }}
       frontend: ${{ steps.paths.outputs.frontend }}
 
     steps:
@@ -42,6 +44,7 @@ jobs:
 
           customer=false
           account=false
+          transaction=false
           frontend=false
 
           while IFS= read -r file; do
@@ -52,12 +55,16 @@ jobs:
               account-service/*)
                 account=true
                 ;;
+              transaction-service/*)
+                transaction=true
+                ;;
               frontend/*)
                 frontend=true
                 ;;
               .github/workflows/release.yml|.github/workflows/reusable-image-release.yml)
                 customer=true
                 account=true
+                transaction=true
                 frontend=true
                 ;;
             esac
@@ -65,6 +72,7 @@ jobs:
 
           echo "customer=$customer" >> "$GITHUB_OUTPUT"
           echo "account=$account" >> "$GITHUB_OUTPUT"
+          echo "transaction=$transaction" >> "$GITHUB_OUTPUT"
           echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
 
   customer-service:
@@ -88,6 +96,18 @@ jobs:
     with:
       context: account-service
       ecr_repository: as-bank/account-service
+      aws_region: ${{ vars.AWS_REGION }}
+      role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
+
+  transaction-service:
+    needs: changes
+    if: needs.changes.outputs.transaction == 'true'
+
+    uses: ./.github/workflows/reusable-image-release.yml
+
+    with:
+      context: transaction-service
+      ecr_repository: as-bank/transaction-service
       aws_region: ${{ vars.AWS_REGION }}
       role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
 
