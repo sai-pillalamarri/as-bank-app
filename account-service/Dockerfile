@@ -31,8 +31,4 @@ USER asbank
 
 EXPOSE 8080 8081
 
-ENTRYPOINT [
-    "java",
-    "-XX:MaxRAMPercentage=75",
-    "org.springframework.boot.loader.launch.JarLauncher"
-]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.launch.JarLauncher"]
