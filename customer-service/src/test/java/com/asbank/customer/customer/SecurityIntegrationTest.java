@@ -146,6 +146,42 @@ class SecurityIntegrationTest {
     }
 
     @Test
+void allowsCustomerWithCognitoScopeToReadOwnRecord()
+        throws Exception {
+
+    Customer customer = mock(Customer.class);
+
+    when(customer.getSubject())
+            .thenReturn("customer-owner");
+    when(customer.getId())
+            .thenReturn(CUSTOMER_ID);
+    when(customer.getFirstName())
+            .thenReturn("Avery");
+    when(customer.getLastName())
+            .thenReturn("Stone");
+    when(customer.getStatus())
+            .thenReturn(CustomerStatus.ACTIVE);
+
+    when(repository.findById(CUSTOMER_ID))
+            .thenReturn(Optional.of(customer));
+
+    String token =
+            validCustomerToken("customer-owner");
+
+    mockMvc.perform(
+                    get(
+                            "/api/v1/customers/{customerId}",
+                            CUSTOMER_ID
+                    )
+                            .header(
+                                    HttpHeaders.AUTHORIZATION,
+                                    "Bearer " + token
+                            )
+            )
+            .andExpect(status().isOk());
+}
+
+    @Test
     void rejectsTokenFromWrongIssuer() throws Exception {
         String token = token(
                 "https://wrong-issuer.example",
@@ -269,7 +305,7 @@ class SecurityIntegrationTest {
                 subject,
                 "access",
                 EXPECTED_CLIENT_ID,
-                "customer.read",
+                "https://api.aslearnings.online/customer.read",
                 List.of("CUSTOMER"),
                 Instant.now().plusSeconds(300)
         );

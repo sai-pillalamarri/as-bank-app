@@ -512,7 +512,7 @@ class SecurityIntegrationTest {
                 "customer-owner",
                 "access",
                 EXPECTED_CLIENT_ID,
-                "account.read",
+                "https://api.aslearnings.online/account.read",
                 List.of("CUSTOMER"),
                 Instant.now().plusSeconds(300)
         );

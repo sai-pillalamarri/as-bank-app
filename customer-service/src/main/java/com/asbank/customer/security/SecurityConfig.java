@@ -147,7 +147,16 @@ public class SecurityConfig {
         Converter<Jwt, Collection<GrantedAuthority>> authorities =
                 jwt -> {
                     Collection<GrantedAuthority> result =
-                            new ArrayList<>(scopes.convert(jwt));
+                            new ArrayList<>();
+
+                    Collection<GrantedAuthority> scopeAuthorities =
+                            scopes.convert(jwt);
+
+                    if (scopeAuthorities != null) {
+                        scopeAuthorities.stream()
+                                .map(this::normalizeScopeAuthority)
+                                .forEach(result::add);
+                    }
 
                     List<String> groups =
                             jwt.getClaimAsStringList("cognito:groups");
@@ -171,6 +180,27 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(authorities);
 
         return converter;
+    }
+
+    private GrantedAuthority normalizeScopeAuthority(
+            GrantedAuthority authority
+    ) {
+        String value = authority.getAuthority();
+
+        if (!value.startsWith("SCOPE_")) {
+            return authority;
+        }
+
+        String scope = value.substring("SCOPE_".length());
+        int separator = scope.lastIndexOf('/');
+
+        if (separator >= 0) {
+            scope = scope.substring(separator + 1);
+        }
+
+        return new SimpleGrantedAuthority(
+                "SCOPE_" + scope
+        );
     }
 
     @Bean
@@ -201,7 +231,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
 
         return source;
     }
@@ -211,7 +244,8 @@ public class SecurityConfig {
             String expected
     ) {
         return jwt -> {
-            String actual = jwt.getClaimAsString(claim);
+            String actual =
+                    jwt.getClaimAsString(claim);
 
             if (expected.equals(actual)) {
                 return OAuth2TokenValidatorResult.success();
@@ -224,7 +258,9 @@ public class SecurityConfig {
                             null
                     );
 
-            return OAuth2TokenValidatorResult.failure(error);
+            return OAuth2TokenValidatorResult.failure(
+                    error
+            );
         };
     }
 }

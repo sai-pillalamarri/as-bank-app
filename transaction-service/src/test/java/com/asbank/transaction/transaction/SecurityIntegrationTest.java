@@ -932,18 +932,17 @@ class SecurityIntegrationTest {
     }
 
     private String customerToken(String scope)
-            throws Exception {
-
-        return token(
-                ISSUER,
-                "customer-owner",
-                "access",
-                EXPECTED_CLIENT_ID,
-                scope,
-                List.of("CUSTOMER"),
-                Instant.now().plusSeconds(300)
-        );
-    }
+        throws Exception {
+    return token(
+            ISSUER,
+            "customer-owner",
+            "access",
+            EXPECTED_CLIENT_ID,
+            "https://api.aslearnings.online/" + scope,
+            List.of("CUSTOMER"),
+            Instant.now().plusSeconds(300)
+    );
+}
 
     private static String token(
             String issuer,
