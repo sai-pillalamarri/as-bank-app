@@ -39,7 +39,6 @@ jobs:
         run: |
           base="${{ github.event.before }}"
           head="${{ github.sha }}"
-
           files="$(git diff --name-only "$base" "$head")"
 
           customer=false
@@ -80,7 +79,6 @@ jobs:
     if: needs.changes.outputs.customer == 'true'
 
     uses: ./.github/workflows/reusable-image-release.yml
-
     with:
       context: customer-service
       ecr_repository: as-bank/customer-service
@@ -92,7 +90,6 @@ jobs:
     if: needs.changes.outputs.account == 'true'
 
     uses: ./.github/workflows/reusable-image-release.yml
-
     with:
       context: account-service
       ecr_repository: as-bank/account-service
@@ -104,7 +101,6 @@ jobs:
     if: needs.changes.outputs.transaction == 'true'
 
     uses: ./.github/workflows/reusable-image-release.yml
-
     with:
       context: transaction-service
       ecr_repository: as-bank/transaction-service
@@ -116,7 +112,6 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
 
     uses: ./.github/workflows/reusable-image-release.yml
-
     with:
       context: frontend
       ecr_repository: as-bank/frontend
