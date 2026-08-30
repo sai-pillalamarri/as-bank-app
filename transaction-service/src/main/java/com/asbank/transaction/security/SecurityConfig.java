@@ -163,9 +163,16 @@ public class SecurityConfig {
                 authorities = jwt -> {
 
             Collection<GrantedAuthority> result =
-                    new ArrayList<>(
-                            scopes.convert(jwt)
-                    );
+                    new ArrayList<>();
+
+            Collection<GrantedAuthority> scopeAuthorities =
+                    scopes.convert(jwt);
+
+            if (scopeAuthorities != null) {
+                scopeAuthorities.stream()
+                        .map(this::normalizeScopeAuthority)
+                        .forEach(result::add);
+            }
 
             List<String> groups =
                     jwt.getClaimAsStringList(
@@ -193,6 +200,32 @@ public class SecurityConfig {
         );
 
         return converter;
+    }
+
+    private GrantedAuthority normalizeScopeAuthority(
+            GrantedAuthority authority
+    ) {
+        String value = authority.getAuthority();
+
+        if (!value.startsWith("SCOPE_")) {
+            return authority;
+        }
+
+        String scope =
+                value.substring("SCOPE_".length());
+
+        int separator =
+                scope.lastIndexOf('/');
+
+        if (separator >= 0) {
+            scope = scope.substring(
+                    separator + 1
+            );
+        }
+
+        return new SimpleGrantedAuthority(
+                "SCOPE_" + scope
+        );
     }
 
     @Bean
