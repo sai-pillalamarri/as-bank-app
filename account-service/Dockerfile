@@ -10,10 +10,10 @@ COPY src ./src
 RUN mvn --batch-mode -DskipTests package \
     && cp target/*.jar application.jar \
     && java -Djarmode=tools \
-        -jar application.jar \
-        extract \
-        --layers \
-        --destination extracted
+    -jar application.jar \
+    extract \
+    --layers \
+    --destination extracted
 
 FROM eclipse-temurin:21-jre@sha256:7a65df4b22d2de92d4e04056e884f3b9122d70b21e2847fd66084278bd0ce037
 
@@ -27,8 +27,9 @@ COPY --from=build --chown=asbank:asbank /workspace/extracted/spring-boot-loader/
 COPY --from=build --chown=asbank:asbank /workspace/extracted/snapshot-dependencies/ ./
 COPY --from=build --chown=asbank:asbank /workspace/extracted/application/ ./
 
-USER asbank
+# Use the numeric UID so container runtimes can prove the process is non-root.
+USER 10001
 
 EXPOSE 8080 8081
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "application.jar"]
