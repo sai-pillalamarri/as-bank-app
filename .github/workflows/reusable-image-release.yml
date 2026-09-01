@@ -47,17 +47,46 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64
 
-      - name: Set image reference
+      - name: Resolve image state
         id: image
         shell: bash
         run: |
           image="${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}:${GITHUB_SHA}"
           echo "tag=$image" >> "$GITHUB_OUTPUT"
 
+          set +e
+          lookup="$(
+            aws ecr describe-images \
+              --region "${{ inputs.aws_region }}" \
+              --repository-name "${{ inputs.ecr_repository }}" \
+              --image-ids imageTag="${GITHUB_SHA}" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text 2>&1
+          )"
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            test -n "$lookup"
+            test "$lookup" != "None"
+
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "existing_digest=$lookup" >> "$GITHUB_OUTPUT"
+            echo "Reusing existing image digest $lookup"
+          elif grep -q "ImageNotFoundException" <<< "$lookup"; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No image exists for ${GITHUB_SHA}; a new image will be built"
+          else
+            echo "$lookup" >&2
+            exit "$status"
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.image.outputs.exists != 'true'
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
 
       - name: Build image
+        if: steps.image.outputs.exists != 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ${{ inputs.context }}
@@ -76,6 +105,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Push image
+        if: steps.image.outputs.exists != 'true'
         shell: bash
         run: docker push "${{ steps.image.outputs.tag }}"
 
@@ -83,14 +113,18 @@ jobs:
         id: digest
         shell: bash
         run: |
-          digest="$(
-            aws ecr describe-images \
-              --region "${{ inputs.aws_region }}" \
-              --repository-name "${{ inputs.ecr_repository }}" \
-              --image-ids imageTag="${GITHUB_SHA}" \
-              --query 'imageDetails[0].imageDigest' \
-              --output text
-          )"
+          if [ "${{ steps.image.outputs.exists }}" = "true" ]; then
+            digest="${{ steps.image.outputs.existing_digest }}"
+          else
+            digest="$(
+              aws ecr describe-images \
+                --region "${{ inputs.aws_region }}" \
+                --repository-name "${{ inputs.ecr_repository }}" \
+                --image-ids imageTag="${GITHUB_SHA}" \
+                --query 'imageDetails[0].imageDigest' \
+                --output text
+            )"
+          fi
 
           test -n "$digest"
           test "$digest" != "None"
@@ -99,7 +133,7 @@ jobs:
 
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
-          echo "Published $ref"
+          echo "Using immutable image $ref"
 
       - name: Generate Syft SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
@@ -120,18 +154,40 @@ jobs:
       - name: Sign image
         shell: bash
         run: |
-          cosign sign \
-            --yes \
-            "${{ steps.digest.outputs.ref }}"
+          for attempt in 1 2 3; do
+            if cosign sign \
+              --yes \
+              "${{ steps.digest.outputs.ref }}"; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Cosign signing failed after 3 attempts" >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 10))
+          done
 
       - name: Attach signed SBOM attestation
         shell: bash
         run: |
-          cosign attest \
-            --yes \
-            --type spdxjson \
-            --predicate sbom.spdx.json \
-            "${{ steps.digest.outputs.ref }}"
+          for attempt in 1 2 3; do
+            if cosign attest \
+              --yes \
+              --type spdxjson \
+              --predicate sbom.spdx.json \
+              "${{ steps.digest.outputs.ref }}"; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Cosign attestation failed after 3 attempts" >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 10))
+          done
 
       - name: Verify image signature
         shell: bash
