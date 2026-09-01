@@ -16,6 +16,11 @@ on:
         required: true
         type: string
 
+    outputs:
+      digest:
+        description: Immutable digest of the published image.
+        value: ${{ jobs.release.outputs.digest }}
+
 permissions:
   contents: read
   id-token: write
@@ -24,6 +29,9 @@ jobs:
   release:
     name: ${{ inputs.ecr_repository }}
     runs-on: ubuntu-latest
+
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
 
     steps:
       - name: Check out repository
@@ -89,6 +97,7 @@ jobs:
 
           ref="${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}@${digest}"
 
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Published $ref"
 

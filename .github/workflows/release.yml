@@ -117,3 +117,126 @@ jobs:
       ecr_repository: as-bank/frontend
       aws_region: ${{ vars.AWS_REGION }}
       role_arn: ${{ vars.AWS_APPLICATION_RELEASE_ROLE_ARN }}
+
+  gitops:
+    name: Promote images to dev GitOps
+
+    needs:
+      - changes
+      - customer-service
+      - account-service
+      - transaction-service
+      - frontend
+
+    if: >-
+      always() &&
+      needs.changes.result == 'success' &&
+      (needs.customer-service.result == 'success' || needs.customer-service.result == 'skipped') &&
+      (needs.account-service.result == 'success' || needs.account-service.result == 'skipped') &&
+      (needs.transaction-service.result == 'success' || needs.transaction-service.result == 'skipped') &&
+      (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') &&
+      (needs.customer-service.result == 'success' ||
+       needs.account-service.result == 'success' ||
+       needs.transaction-service.result == 'success' ||
+       needs.frontend.result == 'success')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out application repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Check out GitOps repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: sai-pillalamarri/as-bank-gitops
+          token: ${{ secrets.GITOPS_PR_TOKEN }}
+          path: gitops
+          fetch-depth: 0
+
+      - name: Update released image digests
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          CUSTOMER_DIGEST: ${{ needs.customer-service.outputs.digest }}
+          ACCOUNT_DIGEST: ${{ needs.account-service.outputs.digest }}
+          TRANSACTION_DIGEST: ${{ needs.transaction-service.outputs.digest }}
+          FRONTEND_DIGEST: ${{ needs.frontend.outputs.digest }}
+        run: |
+          python .github/scripts/update-gitops-images.py \
+            gitops/apps/charts/as-bank/values-dev.yaml
+
+      - name: Detect GitOps change
+        id: change
+        working-directory: gitops
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit GitOps update
+        if: steps.change.outputs.changed == 'true'
+        working-directory: gitops
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::12}"
+          branch="chore/dev-images-${short_sha}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git switch -C "$branch"
+
+          git add apps/charts/as-bank/values-dev.yaml
+
+          git diff --cached --check
+
+          git commit \
+            -m "chore: promote app images to dev"
+
+          git push \
+            --force-with-lease \
+            --set-upstream origin \
+            "$branch"
+
+          echo "branch=$branch" >> "$GITHUB_ENV"
+
+      - name: Open GitOps pull request
+        if: steps.change.outputs.changed == 'true'
+        working-directory: gitops
+        env:
+          GH_TOKEN: ${{ secrets.GITOPS_PR_TOKEN }}
+        shell: bash
+        run: |
+          pr_url="$(
+            gh pr list \
+              --repo sai-pillalamarri/as-bank-gitops \
+              --head "$branch" \
+              --base main \
+              --state open \
+              --json url \
+              --jq '.[0].url'
+          )"
+
+          if [[ -z "$pr_url" ]]; then
+            pr_url="$(
+              gh pr create \
+                --repo sai-pillalamarri/as-bank-gitops \
+                --base main \
+                --head "$branch" \
+                --title "chore: promote app images to dev" \
+                --body "Automated dev image promotion from as-bank-app commit ${GITHUB_SHA}."
+            )"
+          fi
+
+          echo "GitOps PR: $pr_url"
+
+          gh pr merge \
+            "$pr_url" \
+            --repo sai-pillalamarri/as-bank-gitops \
+            --auto \
+            --squash \
+            --delete-branch
